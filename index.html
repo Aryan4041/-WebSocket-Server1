@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto Price Alert</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background: url('https://ray.so/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Fbg-dark.3b248455.jpeg&w=3840&q=100') no-repeat center center fixed;
+            background-size: cover;
+            color: white;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .container {
+            margin-top: 50px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 12px;
+            width: 60%;
+            margin-left: auto;
+            margin-right: auto;
+            box-shadow: 0px 0px 20px rgba(0, 255, 255, 0.5);
+            backdrop-filter: blur(10px);
+        }
+
+        h1 {
+            font-size: 2.5em;
+            text-transform: uppercase;
+            text-shadow: 0px 0px 10px cyan;
+        }
+
+        input, select, button {
+            margin: 10px;
+            padding: 12px;
+            font-size: 16px;
+            border: none;
+            outline: none;
+            border-radius: 8px;
+        }
+
+        input, select {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        button {
+            cursor: pointer;
+            background: linear-gradient(45deg, #ff0054, #7b2cbf, #1e88e5);
+            color: white;
+            font-weight: bold;
+            box-shadow: 0px 0px 15px rgba(255, 0, 84, 0.8);
+            transition: all 0.3s ease-in-out;
+        }
+
+        button:hover {
+            transform: scale(1.1);
+            box-shadow: 0px 0px 20px rgba(255, 0, 84, 1);
+        }
+
+        #alerts, #expired-alerts {
+            margin-top: 20px;
+            padding: 10px;
+            font-weight: bold;
+        }
+
+        .alert-box {
+            padding: 15px;
+            margin: 10px auto;
+            width: 80%;
+            border-radius: 8px;
+            font-weight: bold;
+            background: linear-gradient(45deg, #ff0054, #7b2cbf, #1e88e5);
+            box-shadow: 0px 0px 10px rgba(255, 0, 84, 0.7);
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>Crypto Price Alert 🚀</h1>
+
+    <div class="container">
+        <h3>Live Prices:</h3>
+        <div id="prices"></div>
+
+        <h3>Set Price Alert:</h3>
+        <input type="text" id="symbol" placeholder="Symbol (e.g., BTCUSDT)">
+        <input type="number" id="alertPrice" placeholder="Target Price">
+        <select id="condition">
+            <option value="above">Above</option>
+            <option value="below">Below</option>
+        </select>
+        <button onclick="setAlert()">Set Alert</button>
+
+        <h3>Active Alerts:</h3>
+        <div id="alerts"></div>
+
+        <h3>Expired Alerts:</h3>
+        <div id="expired-alerts"></div>
+    </div>
+
+    <audio id="alertSound" src="https://www.myinstants.com/media/sounds/my-options-buying-strategies.mp3"></audio>
+
+    <script>
+        const ws = new WebSocket(`wss://${window.location.host}`);
+        const alertSound = document.getElementById("alertSound");
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+
+            if (data.type === "price") {
+                document.getElementById("prices").innerHTML = `<p>${data.symbol}: $${data.price.toFixed(2)}</p>`;
+            } else if (data.type === "alertSet") {
+                document.getElementById("alerts").innerHTML += `<p class="alert-box">🔔 ${data.symbol} alert set at $${data.price} (${data.condition})</p>`;
+            } else if (data.type === "alert") {
+                playAlertSound();
+                showPopup(data.symbol, data.price);
+                moveToExpired(data.symbol);
+            }
+        };
+
+        function setAlert() {
+            const symbol = document.getElementById("symbol").value.toUpperCase();
+            const price = document.getElementById("alertPrice").value;
+            const condition = document.getElementById("condition").value;
+
+            ws.send(JSON.stringify({ type: "setAlert", symbol, price, condition }));
+        }
+
+        function playAlertSound() {
+            alertSound.play();
+            setTimeout(() => alertSound.pause(), 30000); // Stops sound after 30 seconds
+        }
+
+        function showPopup(symbol, price) {
+            let popup = document.createElement("div");
+            popup.innerHTML = `🚨 ${symbol} hit $${price}!`;
+            popup.style.position = "fixed";
+            popup.style.top = "20px";
+            popup.style.right = "20px";
+            popup.style.padding = "15px";
+            popup.style.borderRadius = "8px";
+            popup.style.fontSize = "18px";
+            popup.style.fontWeight = "bold";
+            popup.style.background = "linear-gradient(45deg, #ff0054, #7b2cbf, #1e88e5)";
+            popup.style.color = "white";
+            popup.style.boxShadow = "0px 0px 10px rgba(255, 0, 84, 0.7)";
+            popup.style.animation = "fadeIn 0.5s ease-in-out";
+            document.body.appendChild(popup);
+
+            setTimeout(() => {
+                popup.style.opacity = "0";
+                setTimeout(() => document.body.removeChild(popup), 500);
+            }, 5000);
+        }
+
+        function moveToExpired(symbol) {
+            let alerts = document.getElementById("alerts").getElementsByClassName("alert-box");
+            for (let alert of alerts) {
+                if (alert.innerText.includes(symbol)) {
+                    document.getElementById("expired-alerts").appendChild(alert);
+                    alert.style.opacity = "0.5";
+                }
+            }
+        }
+    </script>
+
+</body>
+</html>
